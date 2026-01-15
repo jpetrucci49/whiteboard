@@ -17,6 +17,12 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
+  // Listen for 'draw' events from any client
+  socket.on('draw', (lineData) => {
+    // Broadcast to ALL other connected clients (not back to sender)
+    socket.broadcast.emit('draw', lineData);
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
