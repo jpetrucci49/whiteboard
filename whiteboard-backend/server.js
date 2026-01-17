@@ -34,16 +34,21 @@ io.on('connection', (socket) => {
 
   // Listen for 'draw' events from any client
   socket.on('draw', (lineData) => {
-    lineData.color = userColor; // Enforce user's color
-    socket.broadcast.emit('draw', { ...lineData, userId: socket.id });
+    // Enforce sender's color (prevents cheating)
+    const user = users.get(socket.id);
+    if (user) {
+      lineData.color = user.color;
+      lineData.userId = socket.id;
+      socket.broadcast.emit('draw', lineData);
+    }
   });
 
   // Listen for color changes
-  socket.on('colorChange', (newColor) => {
+  socket.on('colorChange', (color) => {
     const user = users.get(socket.id);
     if (user) {
-      user.color = newColor;
-      socket.broadcast.emit('colorChange', { id: socket.id, color: newColor });
+      user.color = color;
+      socket.broadcast.emit('colorChange', { id: socket.id, color });
     }
   });
 

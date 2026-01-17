@@ -32,7 +32,7 @@ interface User {
 
 export const CanvasBoard = () => {
   const [lines, setLines] = useState<LineData[]>([]); // Array of lines, each line is array of points with a color
-  const [cursors, setCursors] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [color, setColor] = useState("#df4b26"); // default orange
   const [brushSize, setBrushSize] = useState(5);
 
@@ -48,17 +48,20 @@ export const CanvasBoard = () => {
   useEffect(() => {
     // Join and get initial users
     socket.on("users", (users: User[]) => {
-      setCursors(users);
+      setUsers(users);
     });
 
+    // New user joined
     socket.on("userJoined", (user: { id: string; color: string }) => {
-      setCursors((prev) => [...prev, { ...user, cursor: null }]);
+      setUsers((prev) => [...prev, { ...user, cursor: null }]);
     });
 
+    // User left
     socket.on("userLeft", (id: string) => {
-      setCursors((prev) => prev.filter((u) => u.id !== id));
+      setUsers((prev) => prev.filter((u) => u.id !== id));
     });
 
+    // Receive drawing from other users
     socket.on("draw", (newLine: LineData) => {
       // Ignore own events
       if (newLine.userId !== socket.id) {
@@ -66,11 +69,22 @@ export const CanvasBoard = () => {
       }
     });
 
+    // Receive cursor movement from other users
     socket.on(
       "cursor",
       ({ id, position }: { id: string; position: CursorData }) => {
-        setCursors((prev) =>
+        setUsers((prev) =>
           prev.map((u) => (u.id === id ? { ...u, cursor: position } : u))
+        );
+      }
+    );
+
+    // Receive color change from other users
+    socket.on(
+      "colorChange",
+      ({ id, color: newColor }: { id: string; color: string }) => {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === id ? { ...u, color: newColor } : u))
         );
       }
     );
@@ -81,6 +95,7 @@ export const CanvasBoard = () => {
       socket.off("userLeft");
       socket.off("draw");
       socket.off("cursor");
+      socket.off("colorChange");
     };
   }, []);
 
@@ -132,7 +147,7 @@ export const CanvasBoard = () => {
 
     // Get the last line and append the new point
     const lastLine = lines[lines.length - 1];
-    if (lastLine) {
+    if (lastLine && lastLine.userId === socket.id) {
       const newLine = { ...lastLine, points: [...lastLine.points, point] };
       setLines([...lines.slice(0, -1), newLine]);
 
@@ -162,6 +177,7 @@ export const CanvasBoard = () => {
         onMouseLeave={handleMouseUp} // Stop drawing if mouse leaves canvas
       >
         <Layer>
+          {/* All lines (from self and others) */}
           {lines.map((line, i) => (
             <Line
               key={i}
@@ -173,15 +189,16 @@ export const CanvasBoard = () => {
               lineJoin="round"
             />
           ))}
-          {cursors.map(
-            (user) =>
-              user.cursor && (
+          {/* Live cursors from other users */}
+          {users.map(
+            (u) =>
+              u.cursor && (
                 <Circle
-                  key={user.id}
-                  x={user.cursor.x}
-                  y={user.cursor.y}
+                  key={u.id}
+                  x={u.cursor.x}
+                  y={u.cursor.y}
                   radius={10}
-                  fill={user.color}
+                  fill={u.color}
                   opacity={0.7}
                 />
               )
