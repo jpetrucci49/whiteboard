@@ -42,6 +42,10 @@ export const CanvasBoard = () => {
   const lastCursorSend = useRef(0);
 
   useEffect(() => {
+    socket.emit("colorChange", color);
+  }, [color]);
+
+  useEffect(() => {
     // Join and get initial users
     socket.on("users", (users: User[]) => {
       setCursors(users);
@@ -56,7 +60,10 @@ export const CanvasBoard = () => {
     });
 
     socket.on("draw", (newLine: LineData) => {
-      setLines((prev) => [...prev, newLine]);
+      // Ignore own events
+      if (newLine.userId !== socket.id) {
+        setLines((prev) => [...prev, newLine]);
+      }
     });
 
     socket.on(

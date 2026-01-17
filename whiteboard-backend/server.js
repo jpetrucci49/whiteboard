@@ -38,6 +38,15 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('draw', { ...lineData, userId: socket.id });
   });
 
+  // Listen for color changes
+  socket.on('colorChange', (newColor) => {
+    const user = users.get(socket.id);
+    if (user) {
+      user.color = newColor;
+      socket.broadcast.emit('colorChange', { id: socket.id, color: newColor });
+    }
+  });
+
   // Handle live cursor movement (throttled on client)
   socket.on('cursor', (position) => {
     const user = users.get(socket.id);
