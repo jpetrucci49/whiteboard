@@ -35,11 +35,28 @@ export const CanvasBoard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [color, setColor] = useState("#df4b26"); // default orange
   const [brushSize, setBrushSize] = useState(5);
+  const [dimensions, setDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
+  const stageRef = useRef<Konva.Stage>(null);
   const isDrawing = useRef(false);
 
   // Throttle cursor updates to reduce network spam
   const lastCursorSend = useRef(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     socket.emit("colorChange", color);
@@ -101,18 +118,47 @@ export const CanvasBoard = () => {
 
   // Send cursor position throttled (every 50ms)
   useEffect(() => {
-    const handleMouseMoveGlobal = (e: MouseEvent) => {
+    const sendCursor = (position: CursorData | null) => {
       const now = Date.now();
       if (now - lastCursorSend.current < 50) return;
       lastCursorSend.current = now;
-
-      const x = e.clientX;
-      const y = e.clientY;
-      socket.emit("cursor", { x, y });
+      socket.emit("cursor", position);
     };
 
-    window.addEventListener("mousemove", handleMouseMoveGlobal);
-    return () => window.removeEventListener("mousemove", handleMouseMoveGlobal);
+    const handleMouseMove = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const relativePos = stage.getRelativePointerPosition();
+      if (!relativePos) return;
+
+      sendCursor({ x: relativePos.x, y: relativePos.y });
+    };
+
+    const handleFocus = () => {
+      // Send current position on focus (if mouse is over)
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const relativePos = stage.getRelativePointerPosition();
+      if (relativePos) {
+        sendCursor({ x: relativePos.x, y: relativePos.y });
+      }
+    };
+
+    const handleBlur = () => {
+      sendCursor(null); // Hide cursor on blur
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+    };
   }, []);
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -169,8 +215,9 @@ export const CanvasBoard = () => {
         setSize={setBrushSize}
       />
       <Stage
-        width={window.innerWidth}
-        height={window.innerHeight}
+        ref={stageRef}
+        width={dimensions.width}
+        height={dimensions.height}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -190,19 +237,24 @@ export const CanvasBoard = () => {
             />
           ))}
           {/* Live cursors from other users */}
-          {users.map(
-            (u) =>
-              u.cursor && (
-                <Circle
-                  key={u.id}
-                  x={u.cursor.x}
-                  y={u.cursor.y}
-                  radius={10}
-                  fill={u.color}
-                  opacity={0.7}
-                />
-              )
-          )}
+          {users
+            .filter((u) => u.id !== socket.id && u.cursor) // Hide self and null
+            .map(
+              (u) =>
+                u.cursor && (
+                  <Circle
+                    key={u.id}
+                    x={u.cursor.x}
+                    y={u.cursor.y}
+                    radius={10}
+                    fill={u.color}
+                    opacity={0.7}
+                    shadowColor="black"
+                    shadowBlur={5}
+                    shadowOpacity={0.3}
+                  />
+                )
+            )}
         </Layer>
       </Stage>
     </div>
