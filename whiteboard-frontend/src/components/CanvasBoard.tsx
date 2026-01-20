@@ -106,6 +106,10 @@ export const CanvasBoard = () => {
       }
     );
 
+    socket.on("clear", () => {
+      setLines([]); // Clear when other users trigger it
+    });
+
     return () => {
       socket.off("users");
       socket.off("userJoined");
@@ -113,6 +117,7 @@ export const CanvasBoard = () => {
       socket.off("draw");
       socket.off("cursor");
       socket.off("colorChange");
+      socket.off("clear");
     };
   }, []);
 
@@ -206,6 +211,11 @@ export const CanvasBoard = () => {
     isDrawing.current = false;
   };
 
+  const handleClear = () => {
+    setLines([]); // Clear locally
+    socket.emit("clear"); // Broadcast to everyone
+  };
+
   return (
     <div className="w-full h-screen bg-gray-50 dark:bg-gray-900">
       <Toolbar
@@ -213,6 +223,7 @@ export const CanvasBoard = () => {
         setColor={setColor}
         size={brushSize}
         setSize={setBrushSize}
+        onClear={handleClear}
       />
       <Stage
         ref={stageRef}

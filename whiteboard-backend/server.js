@@ -66,6 +66,10 @@ io.on('connection', (socket) => {
     users.delete(socket.id);
     socket.broadcast.emit('userLeft', socket.id);
   });
+
+  socket.on('clear', () => {
+    socket.broadcast.emit('clear');
+  });
 });
 
 const PORT = 3001;

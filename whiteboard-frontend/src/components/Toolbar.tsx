@@ -3,9 +3,16 @@ interface ToolbarProps {
   setColor: (color: string) => void;
   size: number;
   setSize: (size: number) => void;
+  onClear: () => void;
 }
 
-export const Toolbar = ({ color, setColor, size, setSize }: ToolbarProps) => {
+export const Toolbar = ({
+  color,
+  setColor,
+  size,
+  setSize,
+  onClear,
+}: ToolbarProps) => {
   const colors = [
     "#000000",
     "#ff0000",
@@ -51,6 +58,14 @@ export const Toolbar = ({ color, setColor, size, setSize }: ToolbarProps) => {
           className="w-32 accent-blue-500"
         />
       </div>
+
+      {/* Clear button */}
+      <button
+        onClick={onClear}
+        className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+      >
+        Clear Canvas
+      </button>
     </div>
   );
 };
